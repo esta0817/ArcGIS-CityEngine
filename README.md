@@ -1,2 +1,2 @@
 # ArcGIS-CityEngine
-ArcGIS CityEngine CGA Code
+ArcGIS CityEngine CGA Rule
