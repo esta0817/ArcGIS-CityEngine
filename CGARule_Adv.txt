@@ -1,0 +1,151 @@
+/**
+ * File:    incheon_rule.cga
+ * Created: 15 Jun 2022 00:17:59 GMT
+ * Author:  swhan
+ */
+
+version "2021.1"
+
+# 높이, 너비 변수 설정
+attr floor = 0
+@Hidden
+attr groundfloor_height = 4
+@Hidden
+attr floor_height = 3.5
+@Hidden
+attr tile_width = 3
+attr height = (floor-1) * floor_height + groundfloor_height
+
+# 건물 이름, 유형 변수 설정
+attr building_name = ""
+attr building_eng_name = ""
+attr building_usage = ""
+attr building_eng_usage = ""
+
+# LOD
+attr LOD = 0
+
+# 건물 유형별 색상 설정
+const getBuildingColor = 
+case building_eng_usage == "Residential" : "#ffe75c"
+case building_eng_usage == "Other" : "#ffe23d"
+case building_eng_usage == "Apartment" : "#ffdd1f"
+case building_eng_usage == "Office" : "#e0bf00"
+case building_eng_usage == "Store" : "#c2a500"
+case building_eng_usage == "Church" : "#a38b00"
+case building_eng_usage == "Private Education Institue" : "#ffc65c"
+case building_eng_usage == "Office Hotel" : "#ffbb3d"
+case building_eng_usage == "Factory" : "#ffb01f"
+case building_eng_usage == "Motel" : "#e09200"
+case building_eng_usage == "Storage" : "#c27e00"
+case building_eng_usage == "Bank" : "#a36a00"
+case building_eng_usage == "Police Station" : "#b9894b"
+else : "#ece0cf"	
+
+# 건물 돌출 및 색상 설정
+@StartRule
+Lot --> 
+	#color(getBuildingColor)
+	extrude(world.up.flatTop, 0) Flat 
+	#extrude(height) # Building
+
+# 중력뱡향으로 지형 평탄화 
+Flat-->
+	color("#282828")
+	comp(f){front : None | side : None | top : extrude(height) Building }
+
+# 건물 생성 
+Building -->
+	comp(f){front : FrontFacade | side : SideFacade | top : Top }
+
+# 앞면 
+# 1층과 나머지 층으로 분할
+FrontFacade -->
+	split(y) {groundfloor_height : Groundfloor |
+	{~floor_height : Floor}* }
+# ~: 사이즈 조절하여 끝까지 다 채우기 / *: 반복 / ': 정확한 비율 입력
+
+# 측면
+SideFacade -->
+	split(y) { {~floor_height : Floor}* }
+
+# 2층 이상	
+Floor -->
+	split(x) { 1:Wall | {~tile_width:Tile}* | 1:Wall}
+
+# 1층
+Groundfloor -->
+	split(x) { 1:Wall | {~tile_width:Tile}* | ~tile_width: EntranceTile | 1:Wall}
+
+# 창문 및 벽 타일 설정
+Tile -->
+	# 20층 이상 고층 빌딩
+	case floor >= 20 :
+        color(getBuildingColor)
+        split(x) { '0.05: Wall 
+			| ~2: split(y) {'0.05:Wall | ~1.5:Window | '0.05:Wall} 
+			| '0.05: Wall}
+    else:
+        color(getBuildingColor)
+        split(x) { ~1: Wall 
+			| 2: split(y) {~1:Wall | 1.5:Window | ~1:Wall} 
+			| ~1: Wall}
+        
+# 벽 및 입구 타일 설정
+EntranceTile -->
+	split(x) { ~1: Wall
+			| 2: split(y) {2.5:Door | ~2:Wall}
+			| ~1 : Wall}
+# 창문
+Window -->
+	case LOD > 0:
+		color("#99ccff")
+		s('1, '1, 0.4)
+		t(0,0,-0.25)
+		i(window_asset)
+	else :
+		color("#99ccff")
+
+# 출입구 
+Door -->
+	case LOD > 0:
+		s('1, '1, 0.5)
+		t(0,0,-0.5)
+		#texture(frontdoor_tex)
+		i("builtin:cube")
+	else:
+		color("#999999")
+
+# 벽 
+Wall -->
+	color(getBuildingColor)
+
+# 지붕 설정 
+Top -->
+	case building_eng_usage == "Church" :
+        color(getBuildingColor)
+      	Divide
+    else:
+        color(getBuildingColor)
+	
+	Divide -->
+		case (scope.sx>=scope.sy):split(x) {~50:RidgeRoof | ~50:HipRoof}
+        else: split(y) {~50:RidgeRoof | ~50:HipRoof}
+
+# 지붕 모양 설정
+RidgeRoof -->
+	alignScopeToGeometryBBox(yx)
+	roofRidge(byAngle, 30)
+
+# 교회 첨탑 모양 설정
+HipRoof -->	
+	extrude(floor_height*2)
+	comp(f){front : SideFacade | side : SideFacade | top : Taper }
+	Taper-->
+		taper(floor_height*6)
+		
+	
+# Asset & Texture
+window_asset = "assets/window/window.obj"
+#frontdoor_tex = "assets/shopwin.tif"
+#roof_tex = "assets/wall.tif"

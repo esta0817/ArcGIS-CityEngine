@@ -1,0 +1,84 @@
+/**
+ * File:    MapoRule.cga
+ * Created: 22 Jun 2022 05:05:53 GMT
+ * Author:  swhan
+ */
+
+version "2022.0"
+
+# 층수 높이 계산
+attr floor = 0
+attr floor_height = 3.5
+attr groundfloor_height = 4
+attr height = (floor-1) * floor_height + groundfloor_height
+
+#타일 
+attr tile_width = 3
+
+#건물 유형
+attr building_eng_usage =""
+
+# 건물 유형별 색상 
+const getBuildingColor = 
+case building_eng_usage == "Residential" : "#ffe75c"
+case building_eng_usage == "Other" : "#ffe23d"
+case building_eng_usage == "Apartment" : "#ffdd1f"
+case building_eng_usage == "Office" : "#e0bf00"
+case building_eng_usage == "Store" : "#c2a500"
+case building_eng_usage == "Church" : "#a38b00"
+case building_eng_usage == "Private Education Institue" : "#ffc65c"
+case building_eng_usage == "Office Hotel" : "#ffbb3d"
+case building_eng_usage == "Factory" : "#ffb01f"
+case building_eng_usage == "Motel" : "#e09200"
+case building_eng_usage == "Storage" : "#c27e00"
+case building_eng_usage == "Bank" : "#a36a00"
+case building_eng_usage == "Police Station" : "#b9894b"
+else : "#ece0cf"	
+
+Lot -->
+	extrude(height) Building
+	#color(getBuildingColor)
+	#report("BuildingNum",1.0)
+	#report("BuildingGeometry", geometry.area)
+
+	
+Building -->
+	comp(f) {front : FrontFacade | side: SideFacade | top : Top}
+
+	
+FrontFacade -->
+	split(y) {groundfloor_height : Groundfloor | {~floor_height : Floor}* }
+
+SideFacade -->
+	split(y) {{~floor_height : Floor}*}
+	
+Groundfloor -->
+	split(x) { 1:Wall | {~tile_width:Tile}* | ~tile_width: EntranceTile | 1:Wall}
+
+Floor --> 
+	split(x) {1 : Wall | {~tile_width:Tile}* | 1: Wall}
+
+EntranceTile -->
+	split(x) {~1 : Wall | 2:split(y){2.5 : Door | ~2:Wall} | ~1 : Wall}
+
+Door -->
+	color("#999999")
+
+Wall --> 
+	color(getBuildingColor)
+	
+Tile -->
+	split(x) {~1 : Wall | 2:split(y){~1:Wall | 1.5 : Window | ~1 : Wall} | ~1 : Wall}
+
+Window -->
+	color("#99ccff")
+	s('1, '1, 0.4)
+	t(0, 0, -0.25)
+	i(window_asset)
+
+Top -->
+	color(getBuildingColor)
+	#roofRidge(byAngle, 30)
+
+# 창문 설정
+window_asset = "assets/window.obj"
